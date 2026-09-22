@@ -1,0 +1,13 @@
+node_modules/
+generated/
+
+.env
+.env.*
+!.env.example
+
+firebase-service-account.json
+*.service-account.json
+*service-account*.json
+
+npm-debug.log*
+.DS_Store

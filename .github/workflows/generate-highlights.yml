@@ -1,0 +1,81 @@
+name: Generate Home Highlights
+
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Quantidade de destaques"
+        required: true
+        default: 20
+        type: number
+      offset:
+        description: "Deslocamento na busca da Comic Vine"
+        required: true
+        default: 0
+        type: number
+      publish:
+        description: "Publicar no Firestore após gerar e validar"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: home-highlight-curator
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL || 'openai/gpt-oss-20b' }}
+      COMIC_VINE_API_KEY: ${{ secrets.COMIC_VINE_API_KEY }}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      GOOGLE_CLOUD_PROJECT: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+      FIRESTORE_DATABASE_ID: ${{ vars.FIRESTORE_DATABASE_ID || 'default' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Validate required secrets
+        shell: bash
+        env:
+          SHOULD_PUBLISH: ${{ inputs.publish }}
+        run: |
+          [[ -n "$GROQ_API_KEY" ]] || { echo "Missing required secret: GROQ_API_KEY" >&2; exit 1; }
+          [[ -n "$COMIC_VINE_API_KEY" ]] || { echo "Missing required secret: COMIC_VINE_API_KEY" >&2; exit 1; }
+          if [[ "$SHOULD_PUBLISH" == "true" ]]; then
+            [[ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]] || { echo "Missing required secret: FIREBASE_SERVICE_ACCOUNT_JSON" >&2; exit 1; }
+          fi
+
+      - name: Generate or publish highlights
+        shell: bash
+        env:
+          SHOULD_PUBLISH: ${{ inputs.publish }}
+          HIGHLIGHT_COUNT: ${{ inputs.count }}
+          HIGHLIGHT_OFFSET: ${{ inputs.offset }}
+        run: |
+          args=(--count "$HIGHLIGHT_COUNT" --offset "$HIGHLIGHT_OFFSET")
+          if [[ "$SHOULD_PUBLISH" == "true" ]]; then
+            args+=(--publish)
+          else
+            args+=(--dry-run)
+          fi
+          npm run generate -- "${args[@]}"

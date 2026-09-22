@@ -1,0 +1,22 @@
+{
+  "name": "home-highlight-curator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "generate": "node generate-highlights.mjs",
+    "generate:dry": "node generate-highlights.mjs --dry-run",
+    "validate": "node --check generate-highlights.mjs && node --check src/cli.mjs && node --check src/curator.mjs && node --check src/comic-vine.mjs && node --check src/firestore.mjs && node --check src/groq-copy.mjs && node --check src/schema.mjs && node --test",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "dotenv": "^17.2.1",
+    "firebase-admin": "^14.3.0",
+    "groq-sdk": "^0.37.0"
+  }
+}
