@@ -10,6 +10,7 @@ const rawCharacter = {
   id: 1443,
   name: "Spider-Man",
   deck: "Herói dos quadrinhos.",
+  publisher: { name: "Marvel" },
   image: { original_url: "https://comicvine.gamespot.com/spider-man.jpg" },
   api_detail_url: "https://comicvine.gamespot.com/api/character/4005-1443/"
 };
@@ -33,6 +34,25 @@ test("rejeita detalhe com ID diferente e imagem insegura", async () => {
     fetchImpl: async () => response({ status_code: 1, results: { ...rawCharacter, image: { original_url: "http://example.com/image.jpg" } } })
   });
   await assert.rejects(insecure.getCharacter(1443), /não foi validado/);
+});
+
+test("aceita somente personagens publicados pela Marvel", async () => {
+  const dcCharacter = {
+    ...rawCharacter,
+    id: 1699,
+    name: "Batman",
+    publisher: { name: "DC Comics" },
+    api_detail_url: "https://comicvine.gamespot.com/api/character/4005-1699/"
+  };
+  const client = new ComicVineClient("test-key", {
+    fetchImpl: async (url) => url.pathname.includes("characters/")
+      ? response({ status_code: 1, results: [dcCharacter, rawCharacter] })
+      : response({ status_code: 1, results: dcCharacter })
+  });
+
+  const listed = await client.listCharacters({ limit: 2, offset: 0 });
+  assert.deepEqual(listed.map((character) => character.name), ["Spider-Man"]);
+  await assert.rejects(client.getCharacter(1699), /não foi validado/);
 });
 
 test("faz retry limitado para 429", async () => {

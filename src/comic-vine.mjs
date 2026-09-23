@@ -49,6 +49,10 @@ function isUsable(character) {
     && isWebUrl(character.imageUrl, { httpsOnly: true }) && isWebUrl(character.sourceUrl);
 }
 
+function isMarvelCharacter(character) {
+  return typeof character.publisher === "string" && /\bmarvel\b/i.test(character.publisher);
+}
+
 function retryableStatus(status) {
   return status === 429 || status >= 500;
 }
@@ -117,13 +121,15 @@ export class ComicVineClient {
       limit,
       offset
     });
-    return Array.isArray(body.results) ? body.results.map((raw) => normalizeCharacter(raw)).filter(isUsable) : [];
+    return Array.isArray(body.results)
+      ? body.results.map((raw) => normalizeCharacter(raw)).filter((character) => isUsable(character) && isMarvelCharacter(character))
+      : [];
   }
 
   async getCharacter(id) {
     const body = await this.request(`character/4005-${id}/`, { field_list: CHARACTER_FIELDS });
     const character = normalizeCharacter(body.results, true);
-    if (!isUsable(character) || character.id !== id) {
+    if (!isUsable(character) || !isMarvelCharacter(character) || character.id !== id) {
       throw new Error(`O entityId ${id} não foi validado pela Comic Vine.`);
     }
     return character;
